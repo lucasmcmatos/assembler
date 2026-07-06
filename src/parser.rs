@@ -133,6 +133,30 @@ mod tests {
     }
 
     #[test]
+    fn strips_tab_indentation_before_instruction() {
+        let path = write_temp_asm("\t\t@2\n");
+        let mut parser = Parser::new(path.to_str().unwrap()).unwrap();
+
+        assert!(parser.has_more_instructions());
+        assert_eq!(parser.advance(), "@2");
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn handles_file_without_trailing_newline() {
+        let path = write_temp_asm("@1\nD=A");
+        let mut parser = Parser::new(path.to_str().unwrap()).unwrap();
+
+        let mut collected = Vec::new();
+        while parser.has_more_instructions() {
+            collected.push(parser.advance().to_string());
+        }
+
+        assert_eq!(collected, vec!["@1", "D=A"]);
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
     fn ignores_whitespace_only_lines() {
         let path = write_temp_asm("   \n\t\n@1\n   \t  \n");
         let mut parser = Parser::new(path.to_str().unwrap()).unwrap();

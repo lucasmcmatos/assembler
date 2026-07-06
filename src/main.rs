@@ -153,6 +153,20 @@ mod tests {
     }
 
     #[test]
+    fn unreferenced_label_is_registered_but_silently_unused() {
+        let path = write_temp_asm("(UNUSED)\n@1\nD=A\n");
+
+        let mut symbol_table = SymbolTable::new();
+        first_pass(path.to_str().unwrap(), &mut symbol_table).unwrap();
+        let binary_lines = second_pass(path.to_str().unwrap(), &mut symbol_table).unwrap();
+
+        assert_eq!(binary_lines, vec!["0000000000000001", "1110110000010000"]);
+        assert_eq!(symbol_table.get_address("UNUSED"), Some(0));
+
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
     fn resolves_numeric_constant_address() {
         let mut symbol_table = SymbolTable::new();
         assert_eq!(resolve_a_instruction_address("123", &mut symbol_table), 123);

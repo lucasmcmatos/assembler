@@ -35,6 +35,36 @@ const MAX_HACK: &[&str] = &[
     "1110101010000111",
 ];
 
+// Trace manual: R0=0, SCREEN=16384, n=16 (variável), addr=17 (variável),
+// LOOP=10, END=23. Conferido instrução a instrução contra rect.asm.
+const RECT_HACK: &[&str] = &[
+    "0000000000000000",
+    "1111110000010000",
+    "0000000000010111",
+    "1110001100000110",
+    "0000000000010000",
+    "1110001100001000",
+    "0100000000000000",
+    "1110110000010000",
+    "0000000000010001",
+    "1110001100001000",
+    "0000000000010001",
+    "1111110000100000",
+    "1110111010001000",
+    "0000000000010001",
+    "1111110000010000",
+    "0000000000100000",
+    "1110000010010000",
+    "0000000000010001",
+    "1110001100001000",
+    "0000000000010000",
+    "1111110010011000",
+    "0000000000001010",
+    "1110001100000001",
+    "0000000000010111",
+    "1110101010000111",
+];
+
 fn run_assembler_on(source_path: &str) -> Vec<String> {
     let id = COUNTER.fetch_add(1, Ordering::SeqCst);
     let mut asm_path: PathBuf = std::env::temp_dir();
@@ -75,4 +105,16 @@ fn max_asm_matches_reference_hack() {
 fn maxl_asm_matches_reference_hack() {
     let generated = run_assembler_on("test_files/maxL.asm");
     assert_eq!(generated, MAX_HACK);
+}
+
+#[test]
+fn rect_asm_matches_reference_hack() {
+    let generated = run_assembler_on("test_files/rect.asm");
+    assert_eq!(generated, RECT_HACK);
+}
+
+#[test]
+fn rectl_asm_matches_reference_hack() {
+    let generated = run_assembler_on("test_files/rectL.asm");
+    assert_eq!(generated, RECT_HACK);
 }
