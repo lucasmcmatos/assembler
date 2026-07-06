@@ -1,6 +1,13 @@
 use std::fs;
 use std::io;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum InstructionType {
+    AInstruction,
+    CInstruction,
+    Label,
+}
+
 pub struct Parser {
     lines: Vec<String>,
     current: usize,
@@ -25,6 +32,16 @@ impl Parser {
         let line = &self.lines[self.current];
         self.current += 1;
         line
+    }
+
+    pub fn instruction_type(line: &str) -> InstructionType {
+        if line.starts_with('@') {
+            InstructionType::AInstruction
+        } else if line.starts_with('(') {
+            InstructionType::Label
+        } else {
+            InstructionType::CInstruction
+        }
     }
 
     fn clean_line(line: &str) -> String {
@@ -112,5 +129,26 @@ mod tests {
     fn new_returns_err_for_missing_file() {
         let result = Parser::new("/path/that/does/not/exist.asm");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn recognizes_a_instruction() {
+        assert_eq!(
+            Parser::instruction_type("@2"),
+            InstructionType::AInstruction
+        );
+    }
+
+    #[test]
+    fn recognizes_label() {
+        assert_eq!(Parser::instruction_type("(LOOP)"), InstructionType::Label);
+    }
+
+    #[test]
+    fn recognizes_c_instruction() {
+        assert_eq!(
+            Parser::instruction_type("D=A"),
+            InstructionType::CInstruction
+        );
     }
 }
