@@ -29,13 +29,14 @@ fn first_pass(filename: &str, symbol_table: &mut SymbolTable) -> io::Result<()> 
     Ok(())
 }
 
-fn resolve_a_instruction_address(symbol: &str, symbol_table: &SymbolTable) -> u16 {
+fn resolve_a_instruction_address(symbol: &str, symbol_table: &mut SymbolTable) -> u16 {
     if let Ok(value) = symbol.parse::<u16>() {
         return value;
     }
-    symbol_table.get_address(symbol).unwrap_or_else(|| {
-        panic!("símbolo '{symbol}' ainda não suportado (alocação de variáveis vem na etapa 10)")
-    })
+    if let Some(address) = symbol_table.get_address(symbol) {
+        return address;
+    }
+    symbol_table.add_variable(symbol)
 }
 
 fn second_pass(filename: &str, symbol_table: &mut SymbolTable) -> io::Result<Vec<String>> {
@@ -129,24 +130,32 @@ mod tests {
 
     #[test]
     fn resolves_numeric_constant_address() {
-        let symbol_table = SymbolTable::new();
-        assert_eq!(resolve_a_instruction_address("123", &symbol_table), 123);
+        let mut symbol_table = SymbolTable::new();
+        assert_eq!(resolve_a_instruction_address("123", &mut symbol_table), 123);
     }
 
     #[test]
     fn resolves_predefined_symbol_address() {
-        let symbol_table = SymbolTable::new();
+        let mut symbol_table = SymbolTable::new();
         assert_eq!(
-            resolve_a_instruction_address("SCREEN", &symbol_table),
+            resolve_a_instruction_address("SCREEN", &mut symbol_table),
             16384
         );
     }
 
     #[test]
-    #[should_panic(expected = "ainda não suportado")]
-    fn panics_on_symbol_that_requires_variable_allocation() {
-        let symbol_table = SymbolTable::new();
-        resolve_a_instruction_address("i", &symbol_table);
+    fn allocates_new_variables_sequentially_from_16() {
+        let mut symbol_table = SymbolTable::new();
+        assert_eq!(resolve_a_instruction_address("i", &mut symbol_table), 16);
+        assert_eq!(resolve_a_instruction_address("j", &mut symbol_table), 17);
+    }
+
+    #[test]
+    fn reuses_address_for_already_allocated_variable() {
+        let mut symbol_table = SymbolTable::new();
+        let first = resolve_a_instruction_address("i", &mut symbol_table);
+        let second = resolve_a_instruction_address("i", &mut symbol_table);
+        assert_eq!(first, second);
     }
 
     #[test]
@@ -161,6 +170,24 @@ mod tests {
             binary_lines,
             vec!["0000000000000000", "0100000000000000", "0000000000000000",]
         );
+
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn second_pass_allocates_new_variables_starting_at_16() {
+        let path = write_temp_asm("@i\n@j\n@i\n");
+
+        let mut symbol_table = SymbolTable::new();
+        first_pass(path.to_str().unwrap(), &mut symbol_table).unwrap();
+        let binary_lines = second_pass(path.to_str().unwrap(), &mut symbol_table).unwrap();
+
+        assert_eq!(
+            binary_lines,
+            vec!["0000000000010000", "0000000000010001", "0000000000010000",]
+        );
+        assert_eq!(symbol_table.get_address("i"), Some(16));
+        assert_eq!(symbol_table.get_address("j"), Some(17));
 
         fs::remove_file(path).unwrap();
     }
