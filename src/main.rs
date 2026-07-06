@@ -1,13 +1,10 @@
-// TODO: remover allow(dead_code) quando main.rs consumir o restante da API (etapas 9-11 do roteiro)
-#[allow(dead_code)]
 mod code;
-#[allow(dead_code)]
 mod parser;
-#[allow(dead_code)]
 mod symbol_table;
 
 use parser::{InstructionType, Parser};
 use std::env;
+use std::fs;
 use std::io;
 use std::process;
 use symbol_table::SymbolTable;
@@ -39,21 +36,40 @@ fn resolve_a_instruction_address(symbol: &str, symbol_table: &mut SymbolTable) -
     symbol_table.add_variable(symbol)
 }
 
+fn encode_c_instruction(line: &str) -> String {
+    let dest = code::dest(Parser::dest(line));
+    let comp = code::comp(Parser::comp(line));
+    let jump = code::jump(Parser::jump(line));
+    format!("111{comp}{dest}{jump}")
+}
+
 fn second_pass(filename: &str, symbol_table: &mut SymbolTable) -> io::Result<Vec<String>> {
     let mut parser = Parser::new(filename)?;
     let mut binary_lines = Vec::new();
 
     while parser.has_more_instructions() {
         let line = parser.advance();
-        if Parser::instruction_type(line) == InstructionType::AInstruction {
-            let symbol = Parser::symbol(line);
-            let address = resolve_a_instruction_address(&symbol, symbol_table);
-            binary_lines.push(format!("{address:016b}"));
+        match Parser::instruction_type(line) {
+            InstructionType::AInstruction => {
+                let symbol = Parser::symbol(line);
+                let address = resolve_a_instruction_address(&symbol, symbol_table);
+                binary_lines.push(format!("{address:016b}"));
+            }
+            InstructionType::CInstruction => {
+                binary_lines.push(encode_c_instruction(line));
+            }
+            InstructionType::Label => {}
         }
-        // C-instructions: implementado na etapa 11
     }
 
     Ok(binary_lines)
+}
+
+fn write_hack_file(filename: &str, binary_lines: &[String]) -> io::Result<()> {
+    let output_path = std::path::Path::new(filename).with_extension("hack");
+    let mut contents = binary_lines.join("\n");
+    contents.push('\n');
+    fs::write(output_path, contents)
 }
 
 fn main() {
@@ -71,8 +87,16 @@ fn main() {
         process::exit(1);
     }
 
-    if let Err(err) = second_pass(&filename, &mut symbol_table) {
-        eprintln!("erro ao ler {filename}: {err}");
+    let binary_lines = match second_pass(&filename, &mut symbol_table) {
+        Ok(lines) => lines,
+        Err(err) => {
+            eprintln!("erro ao ler {filename}: {err}");
+            process::exit(1);
+        }
+    };
+
+    if let Err(err) = write_hack_file(&filename, &binary_lines) {
+        eprintln!("erro ao escrever saída de {filename}: {err}");
         process::exit(1);
     }
 }
@@ -172,6 +196,62 @@ mod tests {
         );
 
         fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn encodes_c_instruction_with_dest_comp_and_jump() {
+        assert_eq!(encode_c_instruction("D=D+1;JGT"), "1110011111010001");
+    }
+
+    #[test]
+    fn encodes_c_instruction_without_jump() {
+        assert_eq!(encode_c_instruction("M=D"), "1110001100001000");
+    }
+
+    #[test]
+    fn encodes_c_instruction_without_dest() {
+        assert_eq!(encode_c_instruction("0;JMP"), "1110101010000111");
+    }
+
+    #[test]
+    fn second_pass_encodes_a_and_c_instructions_together() {
+        let path = write_temp_asm("@0\nD=A\n@1\nD=D+M\n@2\nM=D\n");
+
+        let mut symbol_table = SymbolTable::new();
+        first_pass(path.to_str().unwrap(), &mut symbol_table).unwrap();
+        let binary_lines = second_pass(path.to_str().unwrap(), &mut symbol_table).unwrap();
+
+        assert_eq!(
+            binary_lines,
+            vec![
+                "0000000000000000",
+                "1110110000010000",
+                "0000000000000001",
+                "1111000010010000",
+                "0000000000000010",
+                "1110001100001000",
+            ]
+        );
+
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn write_hack_file_creates_file_with_binary_lines() {
+        let asm_path = write_temp_asm("@0\nD=A\n");
+        let binary_lines = vec![
+            "0000000000000000".to_string(),
+            "1110110000010000".to_string(),
+        ];
+
+        write_hack_file(asm_path.to_str().unwrap(), &binary_lines).unwrap();
+
+        let hack_path = asm_path.with_extension("hack");
+        let contents = fs::read_to_string(&hack_path).unwrap();
+        assert_eq!(contents, "0000000000000000\n1110110000010000\n");
+
+        fs::remove_file(asm_path).unwrap();
+        fs::remove_file(hack_path).unwrap();
     }
 
     #[test]

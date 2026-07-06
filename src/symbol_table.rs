@@ -40,6 +40,8 @@ impl SymbolTable {
         address
     }
 
+    // Parte da API especificada no CLAUDE.md; não é chamada pelo main.rs atual.
+    #[allow(dead_code)]
     pub fn contains(&self, symbol: &str) -> bool {
         self.table.contains_key(symbol)
     }
