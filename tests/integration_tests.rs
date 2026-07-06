@@ -118,3 +118,29 @@ fn rectl_asm_matches_reference_hack() {
     let generated = run_assembler_on("test_files/rectL.asm");
     assert_eq!(generated, RECT_HACK);
 }
+
+// pong.asm é grande demais para hand-tracing linha a linha (27k+ instruções),
+// então a validação aqui é por consistência: pongL.asm é a versão sem símbolos
+// do mesmo programa (endereços já resolvidos), logo ambos devem produzir
+// exatamente o mesmo .hack. Também checamos que toda linha gerada é um binário
+// de 16 bits válido, como robustez/performance do parser em arquivo real grande.
+#[test]
+fn pong_asm_matches_pongl_asm() {
+    let pong = run_assembler_on("test_files/pong.asm");
+    let pongl = run_assembler_on("test_files/pongL.asm");
+    assert_eq!(pong, pongl);
+}
+
+#[test]
+fn pong_hack_output_is_well_formed() {
+    let generated = run_assembler_on("test_files/pong.asm");
+    assert!(!generated.is_empty());
+
+    for line in &generated {
+        assert_eq!(line.len(), 16, "linha com tamanho inesperado: {line}");
+        assert!(
+            line.chars().all(|c| c == '0' || c == '1'),
+            "linha contém caractere inválido: {line}"
+        );
+    }
+}
