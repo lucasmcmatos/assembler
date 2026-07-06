@@ -44,6 +44,16 @@ impl Parser {
         }
     }
 
+    pub fn symbol(line: &str) -> String {
+        if let Some(stripped) = line.strip_prefix('@') {
+            stripped.to_string()
+        } else if let Some(stripped) = line.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+            stripped.to_string()
+        } else {
+            panic!("linha não é A-instruction nem label: {line}")
+        }
+    }
+
     pub fn dest(line: &str) -> Option<&str> {
         line.find('=').map(|idx| &line[..idx])
     }
@@ -169,6 +179,17 @@ mod tests {
             Parser::instruction_type("D=A"),
             InstructionType::CInstruction
         );
+    }
+
+    #[test]
+    fn extracts_symbol_from_a_instruction() {
+        assert_eq!(Parser::symbol("@2"), "2");
+        assert_eq!(Parser::symbol("@sym"), "sym");
+    }
+
+    #[test]
+    fn extracts_symbol_from_label() {
+        assert_eq!(Parser::symbol("(LOOP)"), "LOOP");
     }
 
     #[test]
