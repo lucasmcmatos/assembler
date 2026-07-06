@@ -44,6 +44,25 @@ impl Parser {
         }
     }
 
+    pub fn dest(line: &str) -> Option<&str> {
+        line.find('=').map(|idx| &line[..idx])
+    }
+
+    pub fn comp(line: &str) -> &str {
+        let after_dest = match line.find('=') {
+            Some(idx) => &line[idx + 1..],
+            None => line,
+        };
+        match after_dest.find(';') {
+            Some(idx) => &after_dest[..idx],
+            None => after_dest,
+        }
+    }
+
+    pub fn jump(line: &str) -> Option<&str> {
+        line.find(';').map(|idx| &line[idx + 1..])
+    }
+
     fn clean_line(line: &str) -> String {
         let without_comment = match line.find("//") {
             Some(idx) => &line[..idx],
@@ -150,5 +169,26 @@ mod tests {
             Parser::instruction_type("D=A"),
             InstructionType::CInstruction
         );
+    }
+
+    #[test]
+    fn extracts_dest_comp_and_jump_when_all_present() {
+        assert_eq!(Parser::dest("D=D+1;JGT"), Some("D"));
+        assert_eq!(Parser::comp("D=D+1;JGT"), "D+1");
+        assert_eq!(Parser::jump("D=D+1;JGT"), Some("JGT"));
+    }
+
+    #[test]
+    fn extracts_dest_and_comp_without_jump() {
+        assert_eq!(Parser::dest("M=D"), Some("M"));
+        assert_eq!(Parser::comp("M=D"), "D");
+        assert_eq!(Parser::jump("M=D"), None);
+    }
+
+    #[test]
+    fn extracts_comp_and_jump_without_dest() {
+        assert_eq!(Parser::dest("0;JMP"), None);
+        assert_eq!(Parser::comp("0;JMP"), "0");
+        assert_eq!(Parser::jump("0;JMP"), Some("JMP"));
     }
 }
