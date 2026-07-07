@@ -4,7 +4,7 @@
 - **RA:** 20250013668
 - **Disciplina:** Compiladores
 - **Linguagem:** Rust (edition 2021)
-
+- **Link do Vídeo:** https://youtu.be/6IF6XoKF4Rc
 ## Descrição
 
 Assembler para a linguagem Assembly Hack (Nand2Tetris, Projeto 06). Traduz arquivos
